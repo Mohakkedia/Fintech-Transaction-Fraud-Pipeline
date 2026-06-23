@@ -1,0 +1,44 @@
+version: 2
+
+models:
+  - name: stg_transactions
+    description: Staged and cleaned payment transaction logs.
+    columns:
+      - name: transaction_id
+        description: Unique primary key for the transaction.
+        tests:
+          - unique
+          - not_null
+
+  - name: stg_cardholders
+    description: Staged cardholder profiles containing risk indicators.
+    columns:
+      - name: cardholder_id
+        description: Unique cardholder ID.
+        tests:
+          - unique
+          - not_null
+
+  - name: stg_chargebacks
+    description: Staged dispute and chargeback flags.
+    columns:
+      - name: transaction_id
+        description: Reference key linking back to the transaction.
+        tests:
+          - not_null
+
+  - name: fct_transaction_risk
+    description: Gold marts table combining transactional features, velocities, spending limit breaches, and chargeback outcomes.
+    columns:
+      - name: transaction_id
+        description: Unique key for the transaction.
+        tests:
+          - unique
+          - not_null
+      - name: cardholder_id
+        tests:
+          - not_null
+      - name: transaction_risk_score
+        description: Heuristics-based risk rating (higher is riskier).
+        tests:
+          - not_null

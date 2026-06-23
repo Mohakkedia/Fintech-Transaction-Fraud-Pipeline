@@ -1,0 +1,13 @@
+version: 2
+
+sources:
+  - name: raw_data
+    database: FINTECH_RAW
+    schema: PAYMENT_DATA
+    tables:
+      - name: transactions
+        description: Raw transaction ledger logs.
+      - name: cardholder_profiles
+        description: Customer profile credit risk metadata.
+      - name: chargebacks
+        description: Customer dispute flags and chargeback records.
