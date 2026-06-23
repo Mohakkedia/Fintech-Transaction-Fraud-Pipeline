@@ -1,0 +1,16 @@
+# dbt Profile mapping to Snowflake Warehouse
+fintech_profile:
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT', 'your_account_locator.region') }}"
+      user: "{{ env_var('SNOWFLAKE_USER', 'dbt_user') }}"
+      password: "{{ env_var('SNOWFLAKE_PASSWORD', 'your_secure_password') }}"
+      role: "{{ env_var('SNOWFLAKE_ROLE', 'DBT_ROLE') }}"
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE', 'FINTECH_TRANSFORM_WH') }}"
+      database: "{{ env_var('SNOWFLAKE_DATABASE', 'FINTECH_ANALYTICS') }}"
+      schema: staging # Default target schema
+      threads: 4
+      client_session_keep_alive: False
+      query_tag: dbt_fraud_analytics_pipeline

@@ -1,0 +1,115 @@
+-- ============================================================================
+-- SNOWFLAKE SETUP FOR FINTECH TRANSACTIONS & FRAUD ENGINE
+-- ============================================================================
+
+-- 1. Create Warehouses
+CREATE WAREHOUSE IF NOT EXISTS FINTECH_LOAD_WH 
+  WITH WAREHOUSE_SIZE = 'XSMALL' 
+  AUTO_SUSPEND = 60 
+  AUTO_RESUME = TRUE 
+  COMMENT = 'Warehouse for loading raw transactions and profile data';
+
+CREATE WAREHOUSE IF NOT EXISTS FINTECH_TRANSFORM_WH 
+  WITH WAREHOUSE_SIZE = 'XSMALL' 
+  AUTO_SUSPEND = 60 
+  AUTO_RESUME = TRUE 
+  COMMENT = 'Warehouse for dbt transformations and risk metrics modeling';
+
+-- 2. Create Databases
+CREATE DATABASE IF NOT EXISTS FINTECH_RAW 
+  COMMENT = 'Raw landing zone for payment and dispute logs';
+
+CREATE DATABASE IF NOT EXISTS FINTECH_ANALYTICS 
+  COMMENT = 'Analytics warehouse schema containing staging and gold risk marts';
+
+-- 3. Create Schemas
+CREATE SCHEMA IF NOT EXISTS FINTECH_RAW.PAYMENT_DATA;
+CREATE SCHEMA IF NOT EXISTS FINTECH_ANALYTICS.STAGING;
+CREATE SCHEMA IF NOT EXISTS FINTECH_ANALYTICS.MARTS;
+
+-- 4. Create Tables in FINTECH_RAW Database
+USE DATABASE FINTECH_RAW;
+USE SCHEMA PAYMENT_DATA;
+
+-- Cardholder Profiles Table
+CREATE OR REPLACE TABLE CARDHOLDER_PROFILES (
+    cardholder_id VARCHAR(50),
+    name VARCHAR(150),
+    credit_risk_score INT,
+    kyc_status VARCHAR(50),
+    daily_limit NUMBER(10,2)
+);
+
+-- Transactions Table
+CREATE OR REPLACE TABLE TRANSACTIONS (
+    transaction_id VARCHAR(50),
+    cardholder_id VARCHAR(50),
+    timestamp TIMESTAMP_NTZ,
+    amount NUMBER(10,2),
+    merchant_category VARCHAR(100),
+    merchant_id VARCHAR(50),
+    merchant_name VARCHAR(150),
+    city VARCHAR(100)
+);
+
+-- Chargebacks Table
+CREATE OR REPLACE TABLE CHARGEBACKS (
+    transaction_id VARCHAR(50),
+    dispute_timestamp TIMESTAMP_NTZ,
+    dispute_category VARCHAR(100)
+);
+
+-- 5. Create File Formats and Stages
+CREATE OR REPLACE FILE FORMAT FINTECH_CSV_FORMAT
+  TYPE = 'CSV'
+  FIELD_DELIMITER = ','
+  SKIP_HEADER = 1
+  NULL_IF = ('NULL', 'null', '')
+  FIELD_OPTIONALLY_ENCLOSED_BY = '"';
+
+CREATE OR REPLACE STAGE FINTECH_RAW_STAGE
+  FILE_FORMAT = FINTECH_CSV_FORMAT;
+
+-- 6. COPY INTO Commands (Used by Airflow / Loading pipelines)
+-- Copying Cardholder Profiles
+-- COPY INTO CARDHOLDER_PROFILES 
+-- FROM @FINTECH_RAW_STAGE/raw_cardholder_profiles.csv;
+
+-- Copying Transactions
+-- COPY INTO TRANSACTIONS 
+-- FROM @FINTECH_RAW_STAGE/raw_transactions.csv;
+
+-- Copying Chargebacks
+-- COPY INTO CHARGEBACKS 
+-- FROM @FINTECH_RAW_STAGE/raw_chargebacks.csv;
+
+-- ============================================================================
+-- ROLE-BASED ACCESS CONTROL (RBAC) CONFIGURATION
+-- ============================================================================
+
+-- Create dedicated Roles
+CREATE ROLE IF NOT EXISTS AIRFLOW_ROLE;
+CREATE ROLE IF NOT EXISTS DBT_ROLE;
+
+-- Grant warehouse usage
+GRANT USAGE ON WAREHOUSE FINTECH_LOAD_WH TO ROLE AIRFLOW_ROLE;
+GRANT USAGE ON WAREHOUSE FINTECH_TRANSFORM_WH TO ROLE DBT_ROLE;
+
+-- Grant permissions to Airflow Role (Read/Write on RAW tables, Read on Analytics)
+GRANT USAGE ON DATABASE FINTECH_RAW TO ROLE AIRFLOW_ROLE;
+GRANT USAGE ON SCHEMA FINTECH_RAW.PAYMENT_DATA TO ROLE AIRFLOW_ROLE;
+GRANT ALL PRIVILEGES ON TABLE CARDHOLDER_PROFILES TO ROLE AIRFLOW_ROLE;
+GRANT ALL PRIVILEGES ON TABLE TRANSACTIONS TO ROLE AIRFLOW_ROLE;
+GRANT ALL PRIVILEGES ON TABLE CHARGEBACKS TO ROLE AIRFLOW_ROLE;
+GRANT ALL PRIVILEGES ON STAGE FINTECH_RAW_STAGE TO ROLE AIRFLOW_ROLE;
+
+-- Grant permissions to dbt Role (Read on RAW, Read/Write on ANALYTICS schemas)
+GRANT USAGE ON DATABASE FINTECH_RAW TO ROLE DBT_ROLE;
+GRANT USAGE ON SCHEMA FINTECH_RAW.PAYMENT_DATA TO ROLE DBT_ROLE;
+GRANT SELECT ON ALL TABLES IN SCHEMA FINTECH_RAW.PAYMENT_DATA TO ROLE DBT_ROLE;
+
+GRANT USAGE, CREATE SCHEMA ON DATABASE FINTECH_ANALYTICS TO ROLE DBT_ROLE;
+GRANT USAGE ON SCHEMA FINTECH_ANALYTICS.STAGING TO ROLE DBT_ROLE;
+GRANT USAGE ON SCHEMA FINTECH_ANALYTICS.MARTS TO ROLE DBT_ROLE;
+GRANT ALL PRIVILEGES ON SCHEMA FINTECH_ANALYTICS.STAGING TO ROLE DBT_ROLE;
+GRANT ALL PRIVILEGES ON SCHEMA FINTECH_ANALYTICS.MARTS TO ROLE DBT_ROLE;

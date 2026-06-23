@@ -1,0 +1,29 @@
+name: 'fintech_fraud_pipeline'
+version: '1.0.0'
+config-version: 2
+
+# This name links to the profiles.yml file
+profile: 'fintech_profile'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# Configuring models
+models:
+  fintech_fraud_pipeline:
+    # Staging models will default to views
+    staging:
+      +materialized: view
+      +schema: staging
+    # Marts/Fact models will default to tables for downstream dashboard queries
+    marts:
+      +materialized: table
+      +schema: marts
